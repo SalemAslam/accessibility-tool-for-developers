@@ -1,0 +1,165 @@
+# .github/workflows/pr_analysis.yml
+
+name: SWE-Agent PR Analysis
+
+on:
+    workflow_call:
+      secrets:
+        access-token: 
+          description: 'A token passed from the caller workflow'
+          required: true
+        API_KEY:
+          description: 'API KEY'
+          required: true
+    workflow_dispatch:
+    pull_request:
+      types: [opened, edited, synchronize, reopened]
+      branches:
+         - main
+
+
+jobs:
+  analyze_pr_job: 
+  
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+        
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          repository: icoding1010/appian_hack_test_1
+          token: ${{ secrets.SECRET_FOR_LLM_APPIAN_ANALYSIS }}
+        
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      
+      # - name: Extract full branch reference 
+      #   id: extract-branch
+      #   run: echo "FULL_BRANCH=${{ github.ref }}" >> $GITHUB_ENV
+
+      # - name: Print full branch reference
+      #   id: get-branch-name
+      #   run: |
+      #     full_branch=${{ env.FULL_BRANCH }}
+      #     echo "full_branch=$full_branch"
+
+      # - name: Extract branch name
+      #   run: |
+      #     branch_name=$(basename "${{ env.FULL_BRANCH }}")
+      #     echo "BRANCH_NAME=$branch_name" >> $GITHUB_ENV
+
+      # - name: Print branch name 
+      #   run: echo "branch_name=${{ env.BRANCH_NAME }}" 
+          
+      # - name: Get PR number
+      #   id: get-pr
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.SECRET_FOR_LLM_PR_ANALYSIS}}  # Replace with your personal access token
+      #     REPO_OWNER: ${{ github.repository_owner }}
+      #     REPO_NAME: ${{ github.event.repository.name }}
+      #     BRANCH_NAME: ${{ env.BRANCH_NAME }}
+      #   run: |
+      #     PR_NUMBER=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+      #       -H "Accept: application/vnd.github.v3+json" \
+      #       "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls?head=$REPO_OWNER:$BRANCH_NAME" \
+      #       | jq -r '.[0].number')
+      #     echo "PR number=$PR_NUMBER"
+      #     echo "::set-output name=pr_number::$PR_NUMBER"
+
+      # - name: Check if PR exists
+      #   run: |
+      #     PR_NUMBER=${{ steps.get-pr.outputs.pr_number }}
+      #     if [ -z "$PR_NUMBER" ]; then
+      #       echo "No PR found for branch $BRANCH_NAME"
+      #     else
+      #       echo "PR number for branch $BRANCH_NAME: $PR_NUMBER"
+      #     fi
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+          pip install -r scripts/swe-agent/requirements.txt
+          
+      - name: Set environment variables
+        run: |
+          echo "GITHUB_REPO=${{ github.repository }}" >> $GITHUB_ENV
+          # echo "PR_NUMBER=${{ github.event.inputs.pr_number || 'none' }}" >> $GITHUB_ENV
+      
+      # - name: Debug — List repo contents
+      #   run: |
+      #     echo "Current working directory: $(pwd)"
+      #     ls -R  # List all files and directories recursively
+
+      - name: Run pre-analysis script
+        env:
+          # GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+          # GITHUB_REPO: ${{ env.GITHUB_REPO }}
+          # PR_NUMBER: ${{ env.PR_NUMBER }}
+          # PR_NUMBER: ${{ steps.get-pr.outputs.pr_number }}
+          # BASE_COMMIT: ${{ env.head_commit }}  # Use retrieved head_commit
+          # VERSION: ${{ env.version }}
+          GITHUB_TOKEN: ${{ secrets.SECRET_FOR_LLM_APPIAN_ANALYSIS }}  
+          GITHUB_REPO: "icoding1010/appian_hack_test_1"
+          # PR_NUMBER: 1083
+          PR_NUMBER: 2
+          # BASE_COMMIT: "" 
+          # VERSION: ""
+          # GITHUB_REPO: ${{ env.GITHUB_REPO }}
+          # PR_NUMBER: ${{ env.PR_NUMBER }}
+          # BASE_COMMIT: ${{ env.head_commit }}
+          # VERSION: ${{ env.version }}
+          # GITHUB_TOKEN: ${{ secrets.access-token }}  
+        run: python scripts/pre-analysis.py    
+
+      - name: Create analysis folder
+        run: mkdir -p analysis-u
+ 
+      - name: Run setup.sh
+        run: |
+          git update-index --chmod=+x ./scripts/swe-agent/setup.sh
+              
+      - name: Pull swe-agent docker container
+        run: |
+          docker pull sweagent/swe-agent:latest
+          docker run -it -d -v /analysis-u:/analysis sweagent/swe-agent:latest bash
+    
+      - name: Run analysis script
+        env:
+          GITHUB_REPOSITORY: "icoding1010/appian_hack_test_1"
+          PR_NUMBER: 2
+          GITHUB_TOKEN: ${{ secrets.SECRET_FOR_LLM_APPIAN_ANALYSIS }}
+          # GITHUB_TOKEN: ${{ secrets.access-token }} 
+          AZURE_OPENAI_API_KEY: ${{ secrets.API_KEY }}
+          AZURE_OPENAI_ENDPOINT: 'https://coreengineautomation.openai.azure.com/'
+          AZURE_OPENAI_DEPLOYMENT: 'gpt-4o'
+          AZURE_OPENAI_API_VERSION: '2024-02-01'
+        run: |
+          python scripts/swe-agent/run.py --model_name azure:gpt4o --data_path swe_json_data.json --config_file scripts/swe-agent/config/base_prompt.yaml --per_instance_cost_limit 2.00
+      
+      - name: Show analysis.json file
+        run: |
+          cat analysis-u/analysis.json
+
+      - name: Store analysis.json as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis.json
+          path: analysis-u/analysis.json
+          
+      - name: Store .patch as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: model.patch
+          path: model.patch
+      
+      - name: Store swe_json_data.json as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: swe_json_data.json
+          path: swe_json_data.json
