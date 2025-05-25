@@ -33,7 +33,7 @@ Develop an AI-powered GitHub Pull Request (PR) Accessibility Tool designed speci
 
 The following diagram illustrates the complete workflow and implementation details of the Accessibility PR Tool using GitHub Actions and SWE-Agent:
 
-<img src="https://github.com/user-attachments/assets/95f293e7-191e-476f-a3d3-df665365c53c" alt="Accessibility Tool Workflow" width="400"/>
+<img src="https://github.com/user-attachments/assets/95f293e7-191e-476f-a3d3-df665365c53c" alt="Accessibility Tool Workflow" width="800"/>
 
 
 ## ⚙️ Project Structure
