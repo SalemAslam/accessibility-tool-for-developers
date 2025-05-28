@@ -37,13 +37,37 @@ def get_comment_body(api_key, analysis_file, patch_file):
             patch = file.read()
             
         prompt = (
-            f"""Analyze the code analyses in the JSON file 'File 1', and the corresponding patches in 'File 2'. Clean the patches in 'File 2' and add them to appropriate places in 'File 1' as key-value pairs, with the key being the string 'Patch' and the value being the corresponding patch. 
-            Convert this JSON data into markdown format. Consider the value of the 'Patch' key to be in C++. Use appropriately indented bullet points for the key-value pairs. Provide only this markdown text as output. Do not provide any introduction or explanation. Do not add ```markdown``` to the output.\n\nFile 1:\n{incomplete_analysis}\nFile 2:\n{patch}.
-            The patch should contain only the changes (added/deleted lines) that were made in the code and not the whole file as a patch. Do not add + or - in the beginning of lines in the patch.
-            The final format for a single file should be in the below markdown format:\n'- **File:** \"as per incomplete_analysis\"\n  - **Proper Logging**: as per incomplete_analysis\n  - **Exception Handling**: as per incomplete_analysis\n  - **Code Suggestions**: \"as per incomplete_analysis\"\n  - <details><summary><b>Patch:</b></summary>patch</details>
-            Patch is a part of the code, so, make sure that the patch is in proper markdown format for code.
-            Also, make sure that the code suggestions are also in proper markdown format.
-            You can also make relevant concise suggestions in the 'code suggesions', if required. Make sure that you mention where the code patches are made in the 'code suggestions'.
+            f"""
+                Analyze the code analyses in the JSON file 'File 1', and the corresponding patches in 'File 2'. Check only for WCAG accessibility issues. Clean the patches in 'File 2' and add them to appropriate places in 'File 1' as key-value pairs, with the key 'Patch' and the value being the corresponding patch.
+                Convert this JSON data into markdown format. Consider the value of the 'Patch' key to be in C++. Use appropriately indented bullet points for key-value pairs. Provide only this markdown text as output. Do not provide any introduction or explanation. Do not add `markdown` to the output.
+
+                The patch should contain only the changes made in the code, not the whole file. Do not add + or - at the beginning of lines in the patch.
+
+                The final format for a single file should be:
+
+                * **File:** "as per incomplete\_analysis"
+
+                * **Accessibility Check:**
+
+                    * **Images (Alt Text):** check for descriptive alt attributes for relevant images
+                    * **Color Contrast:** ensure text and UI elements meet minimum contrast ratio of 4.5:1
+                    * **Keyboard Navigation:** ensure interactive elements are reachable and operable via keyboard
+                    * **ARIA Roles:** verify appropriate use of ARIA roles, states, and properties
+                    * **Semantic Structure:** verify use of proper HTML headings, lists, landmarks, and labels
+
+                * **Code Suggestions:**
+
+                    ```python
+                    as per incomplete_analysis
+                    ```
+
+                    *(Specify where patches address WCAG accessibility improvements)*
+                * <details><summary><b>Patch:</b></summary>  
+                    ```python
+                    patch
+                    ```  
+                </details>
+
             """
         )
         
